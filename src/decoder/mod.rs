@@ -9,6 +9,7 @@ pub use self::parallel::{ParallelDecoder, ParallelDecoderReader};
 pub use self::reader::DecoderReader;
 pub use self::state::ReadState;
 use crate::bitreader::BitReader;
+use crate::block_offsets::BlockOffsetCollector;
 use crate::header::Header;
 
 pub mod block;
@@ -78,6 +79,12 @@ pub struct Decoder {
 
     eof: bool,
     write_eof: bool,
+
+    // Block offset tracking
+    block_offsets: BlockOffsetCollector,
+    total_bits_consumed: u64,  // Total bits consumed from input so far
+    decompressed_bytes_read: u64,  // Total decompressed bytes output so far
+    last_block_recorded: bool,  // Track if we've recorded the current block
 }
 
 impl Decoder {
@@ -91,6 +98,11 @@ impl Decoder {
 
             eof: false,
             write_eof: false,
+
+            block_offsets: BlockOffsetCollector::new(),
+            total_bits_consumed: 0,
+            decompressed_bytes_read: 0,
+            last_block_recorded: false,
         }
     }
 
@@ -101,6 +113,16 @@ impl Decoder {
         } else {
             self.write_eof = true;
         }
+    }
+
+    /// Get the collected block offsets
+    pub fn block_offsets(&self) -> &[crate::block_offsets::BlockOffset] {
+        self.block_offsets.offsets()
+    }
+
+    /// Clear recorded block offsets
+    pub fn clear_block_offsets(&mut self) {
+        self.block_offsets.clear();
     }
 
     /// Read more decompressed data from this [`Decoder`]
@@ -134,8 +156,20 @@ impl Decoder {
                 };
 
                 let ready_for_read = block.is_ready_for_read();
+                
+                // Capture bit position before reading block
+                let bit_pos_before_block = reader.position() as u64;
 
                 let read = block.read(&mut reader, buf)?;
+
+                // Record block offset when we transition from ReadyForRead to Reading
+                if ready_for_read && block.is_reading() && !self.last_block_recorded {
+                    self.block_offsets.record(
+                        self.total_bits_consumed + bit_pos_before_block,
+                        self.decompressed_bytes_read,
+                    );
+                    self.last_block_recorded = true;
+                }
 
                 if read == 0 {
                     if !buf.is_empty() {
@@ -149,11 +183,20 @@ impl Decoder {
                     self.eof = true;
                 }
 
+                // Update decompressed bytes counter
+                self.decompressed_bytes_read += u64::from(read as u32);
+
                 let bytes_num = reader.position() / 8;
                 let bits_num = reader.position() % 8;
 
                 self.in_buf.drain(..bytes_num as usize);
+                self.total_bits_consumed += u64::from(bytes_num) * 8;
                 self.skip_bits = bits_num as usize;
+
+                // Reset the block recorded flag when we transition to NotReady
+                if block.is_not_ready() {
+                    self.last_block_recorded = false;
+                }
 
                 Ok(ReadState::Read(read))
             }
@@ -171,6 +214,7 @@ impl Decoder {
 
                     debug_assert_eq!(self.skip_bits % 8, 0);
                     self.in_buf.drain(..4);
+                    self.total_bits_consumed += 32;  // 4 bytes = 32 bits
 
                     self.read(buf)
                 } else {

@@ -65,6 +65,7 @@ pub use self::threadpool::ThreadPool;
 
 mod bitreader;
 mod crc;
+pub mod block_offsets;
 pub mod decoder;
 pub mod header;
 mod huffman;

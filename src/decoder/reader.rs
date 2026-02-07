@@ -46,6 +46,16 @@ impl<R> DecoderReader<R> {
             reader,
         }
     }
+
+    /// Get the collected block offsets
+    pub fn block_offsets(&self) -> &[crate::block_offsets::BlockOffset] {
+        self.decoder.block_offsets()
+    }
+
+    /// Clear recorded block offsets
+    pub fn clear_block_offsets(&mut self) {
+        self.decoder.clear_block_offsets();
+    }
 }
 
 impl<R: Read> Read for DecoderReader<R> {
