@@ -38,7 +38,7 @@ pub struct BlockOffset {
 
 ## Validation
 
-Uses `seek-table` tool (Node.js/JavaScript) as ground truth:
+Uses `seek-table` tool (Node.js/JavaScript) as ground truth for monostream files:
 ```bash
 $ seek-table file.bz2
 32      98696      # compressed_bit_offset  decompressed_block_size
@@ -46,6 +46,8 @@ $ seek-table file.bz2
 ```
 
 Our implementation correctly produces matching offsets for all test files.
+
+**⚠️ Known Limitation**: The `seek-table` version on PATH doesn't handle multistream bzip2 files correctly - it only reports the first stream's offsets. This is a tool limitation, not an issue with our implementation. Multistream validation may require an alternative tool or custom comparison logic.
 
 ## Next Steps: Seek-Table Compatible Format
 

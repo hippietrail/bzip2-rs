@@ -14,7 +14,9 @@ This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get sta
 - Use `seek-table` tool (on PATH) to get ground truth block offsets
 - Format: `compressed_bit_offset decompressed_block_size`
 - Example: `seek-table tests/samplefiles/sample1.bz2` outputs `32 98696`
+- ⚠️ **Limitation**: Current seek-table on PATH doesn't handle multistream bzip2 files - only reports first stream's offsets
 - Use `/Users/hippietrail/itty_bitty/` to inspect bitstreams with bit-level precision
+- For multistream validation, may need alternative tool or implement custom validation
 
 ### Important Notes
 - **Monostream vs Multistream**: Focus on monostream files (single bzip2 stream per file)
