@@ -2,6 +2,25 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
+## Technical Context
+
+### bzip2 Block Markers (BCD format)
+- **Block marker (π)**: `314159265359` hex = bytes `31 41 59 26 53 59`
+- **Stream end marker (√π)**: `177245385090` hex = bytes `17 72 45 38 50 90`
+- Markers appear in the **compressed bitstream**, not decompressed data
+- Block boundaries are found by scanning for these bit patterns
+
+### Testing & Validation
+- Use `seek-table` tool (on PATH) to get ground truth block offsets
+- Format: `compressed_bit_offset decompressed_block_size`
+- Example: `seek-table tests/samplefiles/sample1.bz2` outputs `32 98696`
+- Use `/Users/hippietrail/itty_bitty/` to inspect bitstreams with bit-level precision
+
+### Important Notes
+- **Monostream vs Multistream**: Focus on monostream files (single bzip2 stream per file)
+- Multistream files are concatenated bzip2 files (lower priority)
+- Feature branch: `feature/block-offsets` for block offset tracking work
+
 ## Quick Reference
 
 ```bash

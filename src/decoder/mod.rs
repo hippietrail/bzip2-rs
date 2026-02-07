@@ -136,6 +136,7 @@ impl Decoder {
                 let minimum = (self.skip_bits / 8) + header.max_blocksize() as usize;
                 if self.write_eof || self.in_buf.len() >= minimum {
                     block.set_ready_for_read();
+                    self.last_block_recorded = false;  // Reset for the next block
                     self.read(buf)
                 } else {
                     Ok(ReadState::NeedsWrite)
@@ -164,10 +165,8 @@ impl Decoder {
 
                 // Record block offset when we transition from ReadyForRead to Reading
                 if ready_for_read && block.is_reading() && !self.last_block_recorded {
-                    self.block_offsets.record(
-                        self.total_bits_consumed + bit_pos_before_block,
-                        self.decompressed_bytes_read,
-                    );
+                    let offset = self.total_bits_consumed + bit_pos_before_block;
+                    self.block_offsets.record(offset, self.decompressed_bytes_read);
                     self.last_block_recorded = true;
                 }
 
@@ -192,11 +191,6 @@ impl Decoder {
                 self.in_buf.drain(..bytes_num as usize);
                 self.total_bits_consumed += u64::from(bytes_num) * 8;
                 self.skip_bits = bits_num as usize;
-
-                // Reset the block recorded flag when we transition to NotReady
-                if block.is_not_ready() {
-                    self.last_block_recorded = false;
-                }
 
                 Ok(ReadState::Read(read))
             }
